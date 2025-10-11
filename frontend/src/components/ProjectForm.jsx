@@ -27,7 +27,8 @@ const ProjectForm = () => {
 
   const [technicalOfficers, setTechnicalOfficers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('basic'); // New state for tabs
+  const [activeTab, setActiveTab] = useState('basic');
+  const [fetchLoading, setFetchLoading] = useState(isEdit); // Loading state for fetching project
 
   useEffect(() => {
     if (isEdit) {
@@ -38,10 +39,33 @@ const ProjectForm = () => {
 
   const fetchProject = async () => {
     try {
+      console.log('Fetching project with ID:', id);
       const response = await axios.get(`/api/projects/${id}`);
-      setFormData(response.data);
+      console.log('Fetched project data:', response.data);
+      
+      // Transform the data to match form state
+      const projectData = {
+        projectNumber: response.data.projectNumber || '',
+        name: response.data.name || '',
+        location: response.data.location || '',
+        systemType: response.data.systemType || 'on_grid',
+        size: response.data.size?.toString() || '', // Convert number to string for input
+        inverter: response.data.inverter || '',
+        pvPanel: response.data.pvPanel || '',
+        battery: response.data.battery || '',
+        assignedTechnicalOfficer: response.data.assignedTechnicalOfficer?._id || response.data.assignedTechnicalOfficer || '',
+        clearance: response.data.clearance || { status: 'pending_to_apply_clearance_application' },
+        installation: response.data.installation || { status: 'clearance_received' },
+        connection: response.data.connection || { status: 'document_submission' }
+      };
+      
+      console.log('Transformed project data for form:', projectData);
+      setFormData(projectData);
     } catch (error) {
       console.error('Error fetching project:', error);
+      alert('Error loading project: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setFetchLoading(false);
     }
   };
 
@@ -86,7 +110,7 @@ const ProjectForm = () => {
         name: formData.name,
         location: formData.location,
         systemType: formData.systemType,
-        size: parseFloat(formData.size),
+        size: parseFloat(formData.size) || 0,
         inverter: formData.inverter,
         pvPanel: formData.pvPanel,
         battery: formData.battery || '',
@@ -139,7 +163,10 @@ const ProjectForm = () => {
       console.log('Quick updating step:', updateData);
       
       const response = await axios.put(`/api/projects/${id}`, updateData);
-      setFormData(response.data);
+      setFormData(prev => ({
+        ...prev,
+        [step]: response.data[step]
+      }));
       alert(`${step.charAt(0).toUpperCase() + step.slice(1)} updated to ${getStepLabel(step, status)}`);
     } catch (error) {
       console.error('Error updating step:', error);
@@ -203,12 +230,27 @@ const ProjectForm = () => {
     );
   };
 
+  // Show loading while fetching project data
+  if (fetchLoading) {
+    return (
+      <div>
+        <Header />
+        <div className="container">
+          <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <h2>Loading Project...</h2>
+            <p>Please wait while we load the project data.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <Header />
       <div className="container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1>{isEdit ? `Edit Project: ${formData.name}` : 'Create New Project'}</h1>
+          <h1>{isEdit ? `Edit Project: ${formData.name || 'Loading...'}` : 'Create New Project'}</h1>
           <button
             type="button"
             className="btn btn-secondary"
@@ -268,6 +310,7 @@ const ProjectForm = () => {
                     onChange={handleChange}
                     required
                     disabled={isEdit}
+                    placeholder="Enter project number"
                   />
                 </div>
 
@@ -280,6 +323,7 @@ const ProjectForm = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
+                    placeholder="Enter project name"
                   />
                 </div>
 
@@ -292,6 +336,7 @@ const ProjectForm = () => {
                     value={formData.location}
                     onChange={handleChange}
                     required
+                    placeholder="Enter project location"
                   />
                 </div>
 
@@ -321,6 +366,7 @@ const ProjectForm = () => {
                     required
                     step="0.1"
                     min="0"
+                    placeholder="Enter system size"
                   />
                 </div>
 
@@ -333,6 +379,7 @@ const ProjectForm = () => {
                     value={formData.inverter}
                     onChange={handleChange}
                     required
+                    placeholder="Enter inverter details"
                   />
                 </div>
 
@@ -345,6 +392,7 @@ const ProjectForm = () => {
                     value={formData.pvPanel}
                     onChange={handleChange}
                     required
+                    placeholder="Enter PV panel details"
                   />
                 </div>
 
