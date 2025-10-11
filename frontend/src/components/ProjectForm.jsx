@@ -76,15 +76,47 @@ const ProjectForm = () => {
     setLoading(true);
 
     try {
+      // Prepare the data properly
+      const projectData = {
+        projectNumber: formData.projectNumber,
+        name: formData.name,
+        location: formData.location,
+        systemType: formData.systemType,
+        size: parseFloat(formData.size), // Convert to number
+        inverter: formData.inverter,
+        pvPanel: formData.pvPanel,
+        battery: formData.battery || '', // Ensure battery is always included
+        assignedTechnicalOfficer: formData.assignedTechnicalOfficer || null,
+        clearance: formData.clearance,
+        installation: formData.installation,
+        connection: formData.connection
+      };
+
+      console.log('Submitting project data:', projectData);
+
+      let response;
       if (isEdit) {
-        await axios.put(`/api/projects/${id}`, formData);
+        response = await axios.put(`/api/projects/${id}`, projectData);
       } else {
-        await axios.post('/api/projects', formData);
+        response = await axios.post('/api/projects', projectData);
       }
+
+      console.log('Project saved successfully:', response.data);
       navigate('/projects');
     } catch (error) {
       console.error('Error saving project:', error);
-      alert('Error saving project');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Show detailed error message
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Error saving project';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -189,6 +221,7 @@ const ProjectForm = () => {
                   onChange={handleChange}
                   required
                   step="0.1"
+                  min="0"
                 />
               </div>
 
@@ -224,6 +257,7 @@ const ProjectForm = () => {
                   className="form-control"
                   value={formData.battery}
                   onChange={handleChange}
+                  placeholder="Optional for on-grid systems"
                 />
               </div>
 

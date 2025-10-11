@@ -6,11 +6,7 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: ['https://recent-flossi-updatesxiaomi-8ba190c3.koyeb.app/', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
