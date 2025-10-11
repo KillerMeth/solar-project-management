@@ -1,1 +1,1 @@
-web: npx serve dist -p 8000
+web: npx serve dist -s -p 8000
