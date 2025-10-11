@@ -44,6 +44,10 @@ const Projects = () => {
           return project.installation.status === 'installation_completed';
         } else if (statusFilter === 'connection') {
           return project.connection.status === 'connection_complete';
+        } else if (statusFilter === 'completed') {
+          return project.connection.status === 'connection_complete';
+        } else if (statusFilter === 'in_progress') {
+          return project.connection.status !== 'connection_complete';
         }
         return true;
       });
@@ -109,7 +113,7 @@ const Projects = () => {
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, stageType, project) => {
     const statusMap = {
       'pending_to_apply_clearance_application': 'Pending',
       'clearance_applied': 'Applied',
@@ -144,12 +148,59 @@ const Projects = () => {
       'Procedure': 'badge-in-progress'
     }[statusMap[status]] || 'badge-pending';
 
-    return <span className={`badge ${badgeClass}`}>{statusMap[status]}</span>;
+    // Check if stage is locked due to dependencies
+    let isLocked = false;
+    let lockReason = '';
+
+    if (stageType === 'installation') {
+      if (project.clearance.status !== 'clearance_approved') {
+        isLocked = true;
+        lockReason = 'Waiting for clearance approval';
+      }
+    } else if (stageType === 'connection') {
+      if (project.installation.status !== 'installation_completed') {
+        isLocked = true;
+        lockReason = 'Waiting for installation completion';
+      }
+    }
+
+    return (
+      <div>
+        <span 
+          className={`badge ${badgeClass}`}
+          style={{
+            opacity: isLocked ? 0.5 : 1,
+            border: isLocked ? '1px dashed #6c757d' : 'none'
+          }}
+          title={isLocked ? lockReason : ''}
+        >
+          {statusMap[status]}
+          {isLocked && ' 🔒'}
+        </span>
+        {isLocked && (
+          <div style={{ fontSize: '0.7rem', color: '#6c757d', marginTop: '2px' }}>
+            {lockReason}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const getProjectStatus = (project) => {
+    if (project.connection.status === 'connection_complete') {
+      return { status: 'completed', label: 'Completed', color: '#28a745' };
+    } else if (project.installation.status === 'installation_completed') {
+      return { status: 'connection', label: 'In Connection', color: '#17a2b8' };
+    } else if (project.clearance.status === 'clearance_approved') {
+      return { status: 'installation', label: 'In Installation', color: '#ffc107' };
+    } else {
+      return { status: 'clearance', label: 'In Clearance', color: '#6c757d' };
+    }
   };
 
   if (loading) {
@@ -200,6 +251,8 @@ const Projects = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="all">All Projects</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
                 <option value="clearance">Clearance Approved</option>
                 <option value="installation">Installation Completed</option>
                 <option value="connection">Connection Complete</option>
@@ -224,6 +277,37 @@ const Projects = () => {
           </div>
         </div>
 
+        {/* Project Status Summary */}
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <h3>Project Summary</h3>
+          <div className="grid grid-4">
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#2c5aa0' }}>
+                {projects.length}
+              </div>
+              <div>Total Projects</div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6c757d' }}>
+                {projects.filter(p => getProjectStatus(p).status === 'clearance').length}
+              </div>
+              <div>In Clearance</div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ffc107' }}>
+                {projects.filter(p => getProjectStatus(p).status === 'installation').length}
+              </div>
+              <div>In Installation</div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#28a745' }}>
+                {projects.filter(p => getProjectStatus(p).status === 'completed').length}
+              </div>
+              <div>Completed</div>
+            </div>
+          </div>
+        </div>
+
         <div className="card">
           <table className="table">
             <thead>
@@ -241,6 +325,7 @@ const Projects = () => {
                 <th style={{ cursor: 'pointer' }} onClick={() => handleSort('size')}>
                   Size (kW) {getSortIcon('size')}
                 </th>
+                <th>Current Stage</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => handleSort('clearance')}>
                   Clearance {getSortIcon('clearance')}
                 </th>
@@ -254,54 +339,80 @@ const Projects = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredProjects.map(project => (
-                <tr key={project._id}>
-                  <td>
-                    <strong>{project.projectNumber}</strong>
-                    <br />
-                    <small style={{ color: '#666' }}>
-                      Created: {formatDate(project.createdAt)}
-                    </small>
-                  </td>
-                  <td>{project.name}</td>
-                  <td>{project.location}</td>
-                  <td>
-                    <span className="badge" style={{ background: '#e9ecef', color: '#495057' }}>
-                      {project.systemType.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </td>
-                  <td>{project.size} kW</td>
-                  <td>
-                    {getStatusBadge(project.clearance.status)}
-                    <br />
-                    <small style={{ color: '#666' }}>
-                      {project.clearance.updatedAt && formatDate(project.clearance.updatedAt)}
-                    </small>
-                  </td>
-                  <td>
-                    {getStatusBadge(project.installation.status)}
-                    <br />
-                    <small style={{ color: '#666' }}>
-                      {project.installation.updatedAt && formatDate(project.installation.updatedAt)}
-                    </small>
-                  </td>
-                  <td>
-                    {getStatusBadge(project.connection.status)}
-                    <br />
-                    <small style={{ color: '#666' }}>
-                      {project.connection.updatedAt && formatDate(project.connection.updatedAt)}
-                    </small>
-                  </td>
-                  <td>
-                    <Link 
-                      to={`/projects/edit/${project._id}`} 
-                      className="btn btn-primary btn-sm"
-                    >
-                      View/Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {filteredProjects.map(project => {
+                const projectStatus = getProjectStatus(project);
+                return (
+                  <tr key={project._id} style={{ 
+                    background: projectStatus.status === 'completed' ? '#f8fff9' : 'white'
+                  }}>
+                    <td>
+                      <strong>{project.projectNumber}</strong>
+                      <br />
+                      <small style={{ color: '#666' }}>
+                        Created: {formatDate(project.createdAt)}
+                      </small>
+                    </td>
+                    <td>
+                      {project.name}
+                      {projectStatus.status === 'completed' && (
+                        <span 
+                          className="badge badge-completed" 
+                          style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}
+                        >
+                          ✅ COMPLETED
+                        </span>
+                      )}
+                    </td>
+                    <td>{project.location}</td>
+                    <td>
+                      <span className="badge" style={{ background: '#e9ecef', color: '#495057' }}>
+                        {project.systemType.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td>{project.size} kW</td>
+                    <td>
+                      <span 
+                        className="badge" 
+                        style={{ 
+                          background: projectStatus.color,
+                          color: 'white'
+                        }}
+                      >
+                        {projectStatus.label}
+                      </span>
+                    </td>
+                    <td>
+                      {getStatusBadge(project.clearance.status, 'clearance', project)}
+                      <br />
+                      <small style={{ color: '#666' }}>
+                        {project.clearance.updatedAt && formatDate(project.clearance.updatedAt)}
+                      </small>
+                    </td>
+                    <td>
+                      {getStatusBadge(project.installation.status, 'installation', project)}
+                      <br />
+                      <small style={{ color: '#666' }}>
+                        {project.installation.updatedAt && formatDate(project.installation.updatedAt)}
+                      </small>
+                    </td>
+                    <td>
+                      {getStatusBadge(project.connection.status, 'connection', project)}
+                      <br />
+                      <small style={{ color: '#666' }}>
+                        {project.connection.updatedAt && formatDate(project.connection.updatedAt)}
+                      </small>
+                    </td>
+                    <td>
+                      <Link 
+                        to={`/projects/edit/${project._id}`} 
+                        className="btn btn-primary btn-sm"
+                      >
+                        View/Edit
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           
