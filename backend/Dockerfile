@@ -2,7 +2,7 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (for better caching)
 COPY package*.json ./
 
 # Install dependencies
@@ -10,9 +10,6 @@ RUN npm install --only=production
 
 # Copy source code
 COPY . .
-
-# Create logs directory
-RUN mkdir -p logs
 
 EXPOSE 5000
 
