@@ -43,6 +43,16 @@ const ProjectForm = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const [fetchLoading, setFetchLoading] = useState(isEdit);
 
+  // Stage dependency checks
+  const canEditInstallation = ['team_leader', 'technical_officer'].includes(user?.role) && 
+    (formData.clearance.status === 'clearance_approved' || 
+     formData.installation.status !== 'clearance_received');
+
+  const canEditConnection = ['team_leader', 'assistant', 'technical_officer'].includes(user?.role) && 
+    formData.installation.status === 'installation_completed';
+
+  const isProjectCompleted = formData.connection.status === 'connection_complete';
+
   useEffect(() => {
     if (isEdit) {
       fetchProject();
@@ -114,6 +124,17 @@ const ProjectForm = () => {
 
   const handleStepChange = (step, status) => {
     console.log(`Changing ${step} to ${status}`);
+    
+    // Check dependencies before allowing changes
+    if (step === 'installation' && !canEditInstallation) {
+      alert('Cannot start installation until clearance is approved!');
+      return;
+    }
+    
+    if (step === 'connection' && !canEditConnection) {
+      alert('Cannot start connection until installation is completed!');
+      return;
+    }
     
     const updateData = {
       status,
@@ -196,6 +217,17 @@ const ProjectForm = () => {
 
   const quickUpdateStep = async (step, status) => {
     try {
+      // Check dependencies before allowing changes
+      if (step === 'installation' && !canEditInstallation) {
+        alert('Cannot start installation until clearance is approved!');
+        return;
+      }
+      
+      if (step === 'connection' && !canEditConnection) {
+        alert('Cannot start connection until installation is completed!');
+        return;
+      }
+
       const updateData = {
         [step]: {
           status,
@@ -269,16 +301,26 @@ const ProjectForm = () => {
   };
 
   const canEditClearance = ['team_leader', 'assistant'].includes(user?.role);
-  const canEditInstallation = ['team_leader', 'technical_officer'].includes(user?.role);
-  const canEditConnection = ['team_leader', 'assistant', 'technical_officer'].includes(user?.role);
 
   // Quick status update buttons for each process
-  const renderQuickUpdateButtons = (stepType, steps, canEdit) => {
-    if (!canEdit || !isEdit) return null;
+  const renderQuickUpdateButtons = (stepType, steps, canEdit, dependencyMessage = '') => {
+    if (!isEdit) return null;
 
     return (
       <div className="quick-update-buttons" style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
         <h4>Quick Update:</h4>
+        {!canEdit && dependencyMessage && (
+          <div style={{ 
+            background: '#fff3cd', 
+            color: '#856404', 
+            padding: '0.5rem', 
+            borderRadius: '4px', 
+            marginBottom: '0.5rem',
+            border: '1px solid #ffeaa7'
+          }}>
+            ⚠️ {dependencyMessage}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {steps.map(step => (
             <button
@@ -286,7 +328,8 @@ const ProjectForm = () => {
               type="button"
               className={`btn btn-sm ${formData[stepType].status === step.value ? 'btn-primary' : 'btn-outline-primary'}`}
               onClick={() => quickUpdateStep(stepType, step.value)}
-              disabled={formData[stepType].status === step.value}
+              disabled={formData[stepType].status === step.value || !canEdit}
+              title={!canEdit ? dependencyMessage : ''}
             >
               {step.label}
             </button>
@@ -316,7 +359,14 @@ const ProjectForm = () => {
       <Header />
       <div className="container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1>{isEdit ? `Edit Project: ${formData.name || 'Loading...'}` : 'Create New Project'}</h1>
+          <h1>
+            {isEdit ? `Edit Project: ${formData.name || 'Loading...'}` : 'Create New Project'}
+            {isProjectCompleted && (
+              <span className="badge badge-completed" style={{ marginLeft: '1rem' }}>
+                ✅ PROJECT COMPLETED
+              </span>
+            )}
+          </h1>
           <button
             type="button"
             className="btn btn-secondary"
@@ -548,10 +598,11 @@ const ProjectForm = () => {
                       }`}
                       onClick={() => canEditClearance && handleStepChange('clearance', step.value)}
                       style={{ 
-                        cursor: canEditClearance ? 'pointer' : 'default',
+                        cursor: canEditClearance ? 'pointer' : 'not-allowed',
                         background: formData.clearance.status === step.value ? '#2c5aa0' : '#f8f9fa',
                         color: formData.clearance.status === step.value ? 'white' : '#333',
-                        border: formData.clearance.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6'
+                        border: formData.clearance.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6',
+                        opacity: canEditClearance ? 1 : 0.6
                       }}
                     >
                       {step.label}
@@ -575,6 +626,21 @@ const ProjectForm = () => {
                     Current: {getStepLabel('installation', formData.installation.status)}
                   </span>
                 </div>
+                
+                {/* Dependency Warning */}
+                {!canEditInstallation && formData.clearance.status !== 'clearance_approved' && (
+                  <div style={{ 
+                    background: '#fff3cd', 
+                    color: '#856404', 
+                    padding: '1rem', 
+                    borderRadius: '8px', 
+                    marginBottom: '1rem',
+                    border: '1px solid #ffeaa7',
+                    textAlign: 'center'
+                  }}>
+                    ⚠️ <strong>Installation Locked:</strong> Clearance must be approved before starting installation
+                  </div>
+                )}
                 
                 {/* Date Information */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
@@ -609,23 +675,29 @@ const ProjectForm = () => {
                       }`}
                       onClick={() => canEditInstallation && handleStepChange('installation', step.value)}
                       style={{ 
-                        cursor: canEditInstallation ? 'pointer' : 'default',
+                        cursor: canEditInstallation ? 'pointer' : 'not-allowed',
                         background: formData.installation.status === step.value ? '#2c5aa0' : '#f8f9fa',
                         color: formData.installation.status === step.value ? 'white' : '#333',
-                        border: formData.installation.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6'
+                        border: formData.installation.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6',
+                        opacity: canEditInstallation ? 1 : 0.6
                       }}
                     >
                       {step.label}
                     </div>
                   ))}
                 </div>
-                {renderQuickUpdateButtons('installation', [
-                  { value: 'clearance_received', label: 'Clearance Received' },
-                  { value: 'site_visit_completed', label: 'Site Visit Done' },
-                  { value: '60_percent_payment_received', label: '60% Paid' },
-                  { value: 'ongoing_installation', label: 'Ongoing' },
-                  { value: 'installation_completed', label: 'Completed' }
-                ], canEditInstallation)}
+                {renderQuickUpdateButtons(
+                  'installation', 
+                  [
+                    { value: 'clearance_received', label: 'Clearance Received' },
+                    { value: 'site_visit_completed', label: 'Site Visit Done' },
+                    { value: '60_percent_payment_received', label: '60% Paid' },
+                    { value: 'ongoing_installation', label: 'Ongoing' },
+                    { value: 'installation_completed', label: 'Completed' }
+                  ], 
+                  canEditInstallation,
+                  'Clearance must be approved to update installation'
+                )}
               </div>
 
               {/* Connection Steps */}
@@ -636,6 +708,37 @@ const ProjectForm = () => {
                     Current: {getStepLabel('connection', formData.connection.status)}
                   </span>
                 </div>
+                
+                {/* Dependency Warning */}
+                {!canEditConnection && formData.installation.status !== 'installation_completed' && (
+                  <div style={{ 
+                    background: '#fff3cd', 
+                    color: '#856404', 
+                    padding: '1rem', 
+                    borderRadius: '8px', 
+                    marginBottom: '1rem',
+                    border: '1px solid #ffeaa7',
+                    textAlign: 'center'
+                  }}>
+                    ⚠️ <strong>Connection Locked:</strong> Installation must be completed before starting connection
+                  </div>
+                )}
+                
+                {/* Project Completion Banner */}
+                {isProjectCompleted && (
+                  <div style={{ 
+                    background: '#d4edda', 
+                    color: '#155724', 
+                    padding: '1rem', 
+                    borderRadius: '8px', 
+                    marginBottom: '1rem',
+                    border: '1px solid #c3e6cb',
+                    textAlign: 'center',
+                    fontWeight: 'bold'
+                  }}>
+                    🎉 PROJECT COMPLETED! All stages are finished.
+                  </div>
+                )}
                 
                 {/* Date Information */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
@@ -669,22 +772,28 @@ const ProjectForm = () => {
                       }`}
                       onClick={() => canEditConnection && handleStepChange('connection', step.value)}
                       style={{ 
-                        cursor: canEditConnection ? 'pointer' : 'default',
+                        cursor: canEditConnection ? 'pointer' : 'not-allowed',
                         background: formData.connection.status === step.value ? '#2c5aa0' : '#f8f9fa',
                         color: formData.connection.status === step.value ? 'white' : '#333',
-                        border: formData.connection.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6'
+                        border: formData.connection.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6',
+                        opacity: canEditConnection ? 1 : 0.6
                       }}
                     >
                       {step.label}
                     </div>
                   ))}
                 </div>
-                {renderQuickUpdateButtons('connection', [
-                  { value: 'document_submission', label: 'Docs Submitted' },
-                  { value: 'estimate_paid', label: 'Estimate Paid' },
-                  { value: 'connection_complete', label: 'Complete' },
-                  { value: 'procedure', label: 'Procedure' }
-                ], canEditConnection)}
+                {renderQuickUpdateButtons(
+                  'connection', 
+                  [
+                    { value: 'document_submission', label: 'Docs Submitted' },
+                    { value: 'estimate_paid', label: 'Estimate Paid' },
+                    { value: 'connection_complete', label: 'Complete' },
+                    { value: 'procedure', label: 'Procedure' }
+                  ], 
+                  canEditConnection,
+                  'Installation must be completed to update connection'
+                )}
               </div>
             </>
           )}
