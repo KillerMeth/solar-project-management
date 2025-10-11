@@ -1,16 +1,12 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
@@ -24,9 +20,29 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/users', require('./routes/users'));
 
-// Health check endpoint
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Solar Project Management Backend is running!',
+    endpoints: {
+      health: '/health',
+      api: {
+        auth: '/api/auth/login',
+        projects: '/api/projects',
+        users: '/api/users'
+      }
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Health endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'OK', 
+    service: 'Solar Backend',
+    timestamp: new Date().toISOString()
+  });
 });
 
 const PORT = process.env.PORT || 5000;
