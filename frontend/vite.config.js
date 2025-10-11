@@ -7,9 +7,14 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_URL || 'http://localhost:5000',
-        changeOrigin: true
+        target: process.env.VITE_BACKEND_URL || 'https://outrageous-lyda-pubgmethn-5d1428f9.koyeb.app',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path
       }
     }
+  },
+  define: {
+    'process.env': process.env
   }
 })
