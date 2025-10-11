@@ -20,15 +20,28 @@ const ProjectForm = () => {
     pvPanel: '',
     battery: '',
     assignedTechnicalOfficer: '',
-    clearance: { status: 'pending_to_apply_clearance_application' },
-    installation: { status: 'clearance_received' },
-    connection: { status: 'document_submission' }
+    clearance: { 
+      status: 'pending_to_apply_clearance_application',
+      appliedDate: null,
+      receivedDate: null,
+      updatedAt: new Date()
+    },
+    installation: { 
+      status: 'clearance_received',
+      completedDate: null,
+      updatedAt: new Date()
+    },
+    connection: { 
+      status: 'document_submission',
+      completedDate: null,
+      updatedAt: new Date()
+    }
   });
 
   const [technicalOfficers, setTechnicalOfficers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
-  const [fetchLoading, setFetchLoading] = useState(isEdit); // Loading state for fetching project
+  const [fetchLoading, setFetchLoading] = useState(isEdit);
 
   useEffect(() => {
     if (isEdit) {
@@ -49,14 +62,27 @@ const ProjectForm = () => {
         name: response.data.name || '',
         location: response.data.location || '',
         systemType: response.data.systemType || 'on_grid',
-        size: response.data.size?.toString() || '', // Convert number to string for input
+        size: response.data.size?.toString() || '',
         inverter: response.data.inverter || '',
         pvPanel: response.data.pvPanel || '',
         battery: response.data.battery || '',
         assignedTechnicalOfficer: response.data.assignedTechnicalOfficer?._id || response.data.assignedTechnicalOfficer || '',
-        clearance: response.data.clearance || { status: 'pending_to_apply_clearance_application' },
-        installation: response.data.installation || { status: 'clearance_received' },
-        connection: response.data.connection || { status: 'document_submission' }
+        clearance: response.data.clearance || { 
+          status: 'pending_to_apply_clearance_application',
+          appliedDate: null,
+          receivedDate: null,
+          updatedAt: new Date()
+        },
+        installation: response.data.installation || { 
+          status: 'clearance_received',
+          completedDate: null,
+          updatedAt: new Date()
+        },
+        connection: response.data.connection || { 
+          status: 'document_submission',
+          completedDate: null,
+          updatedAt: new Date()
+        }
       };
       
       console.log('Transformed project data for form:', projectData);
@@ -88,13 +114,31 @@ const ProjectForm = () => {
 
   const handleStepChange = (step, status) => {
     console.log(`Changing ${step} to ${status}`);
+    
+    const updateData = {
+      status,
+      updatedBy: user?.id,
+      updatedAt: new Date()
+    };
+
+    // Set specific dates based on status changes
+    if (step === 'clearance') {
+      if (status === 'clearance_applied') {
+        updateData.appliedDate = new Date();
+      } else if (status === 'clearance_approved') {
+        updateData.receivedDate = new Date();
+      }
+    } else if (step === 'installation' && status === 'installation_completed') {
+      updateData.completedDate = new Date();
+    } else if (step === 'connection' && status === 'connection_complete') {
+      updateData.completedDate = new Date();
+    }
+
     setFormData(prev => ({
       ...prev,
       [step]: {
         ...prev[step],
-        status,
-        updatedBy: user?.id,
-        updatedAt: new Date()
+        ...updateData
       }
     }));
   };
@@ -160,6 +204,19 @@ const ProjectForm = () => {
         }
       };
 
+      // Set specific dates based on status changes
+      if (step === 'clearance') {
+        if (status === 'clearance_applied') {
+          updateData[step].appliedDate = new Date();
+        } else if (status === 'clearance_approved') {
+          updateData[step].receivedDate = new Date();
+        }
+      } else if (step === 'installation' && status === 'installation_completed') {
+        updateData[step].completedDate = new Date();
+      } else if (step === 'connection' && status === 'connection_complete') {
+        updateData[step].completedDate = new Date();
+      }
+
       console.log('Quick updating step:', updateData);
       
       const response = await axios.put(`/api/projects/${id}`, updateData);
@@ -200,6 +257,15 @@ const ProjectForm = () => {
 
     const step = steps[stepType]?.find(s => s.value === value);
     return step?.label || value;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const canEditClearance = ['team_leader', 'assistant'].includes(user?.role);
@@ -441,6 +507,32 @@ const ProjectForm = () => {
                     Current: {getStepLabel('clearance', formData.clearance.status)}
                   </span>
                 </div>
+                
+                {/* Date Information */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+                  <div>
+                    <strong>Applied Date:</strong>
+                    <br />
+                    <span style={{ color: formData.clearance.appliedDate ? '#28a745' : '#6c757d' }}>
+                      {formatDate(formData.clearance.appliedDate)}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Received Date:</strong>
+                    <br />
+                    <span style={{ color: formData.clearance.receivedDate ? '#28a745' : '#6c757d' }}>
+                      {formatDate(formData.clearance.receivedDate)}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Last Updated:</strong>
+                    <br />
+                    <span style={{ color: '#6c757d' }}>
+                      {formatDate(formData.clearance.updatedAt)}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="progress-steps">
                   {[
                     { value: 'pending_to_apply_clearance_application', label: 'Pending to Apply' },
@@ -458,7 +550,8 @@ const ProjectForm = () => {
                       style={{ 
                         cursor: canEditClearance ? 'pointer' : 'default',
                         background: formData.clearance.status === step.value ? '#2c5aa0' : '#f8f9fa',
-                        color: formData.clearance.status === step.value ? 'white' : '#333'
+                        color: formData.clearance.status === step.value ? 'white' : '#333',
+                        border: formData.clearance.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6'
                       }}
                     >
                       {step.label}
@@ -482,6 +575,25 @@ const ProjectForm = () => {
                     Current: {getStepLabel('installation', formData.installation.status)}
                   </span>
                 </div>
+                
+                {/* Date Information */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+                  <div>
+                    <strong>Completed Date:</strong>
+                    <br />
+                    <span style={{ color: formData.installation.completedDate ? '#28a745' : '#6c757d' }}>
+                      {formatDate(formData.installation.completedDate)}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Last Updated:</strong>
+                    <br />
+                    <span style={{ color: '#6c757d' }}>
+                      {formatDate(formData.installation.updatedAt)}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="progress-steps">
                   {[
                     { value: 'clearance_received', label: 'Clearance Received' },
@@ -499,7 +611,8 @@ const ProjectForm = () => {
                       style={{ 
                         cursor: canEditInstallation ? 'pointer' : 'default',
                         background: formData.installation.status === step.value ? '#2c5aa0' : '#f8f9fa',
-                        color: formData.installation.status === step.value ? 'white' : '#333'
+                        color: formData.installation.status === step.value ? 'white' : '#333',
+                        border: formData.installation.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6'
                       }}
                     >
                       {step.label}
@@ -523,6 +636,25 @@ const ProjectForm = () => {
                     Current: {getStepLabel('connection', formData.connection.status)}
                   </span>
                 </div>
+                
+                {/* Date Information */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+                  <div>
+                    <strong>Completed Date:</strong>
+                    <br />
+                    <span style={{ color: formData.connection.completedDate ? '#28a745' : '#6c757d' }}>
+                      {formatDate(formData.connection.completedDate)}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Last Updated:</strong>
+                    <br />
+                    <span style={{ color: '#6c757d' }}>
+                      {formatDate(formData.connection.updatedAt)}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="progress-steps">
                   {[
                     { value: 'document_submission', label: 'Document Submission' },
@@ -539,7 +671,8 @@ const ProjectForm = () => {
                       style={{ 
                         cursor: canEditConnection ? 'pointer' : 'default',
                         background: formData.connection.status === step.value ? '#2c5aa0' : '#f8f9fa',
-                        color: formData.connection.status === step.value ? 'white' : '#333'
+                        color: formData.connection.status === step.value ? 'white' : '#333',
+                        border: formData.connection.status === step.value ? '2px solid #2c5aa0' : '2px solid #dee2e6'
                       }}
                     >
                       {step.label}

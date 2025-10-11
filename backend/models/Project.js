@@ -50,6 +50,12 @@ const projectSchema = new mongoose.Schema({
       ],
       default: 'pending_to_apply_clearance_application'
     },
+    appliedDate: {
+      type: Date
+    },
+    receivedDate: {
+      type: Date
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
@@ -71,6 +77,9 @@ const projectSchema = new mongoose.Schema({
       ],
       default: 'clearance_received'
     },
+    completedDate: {
+      type: Date
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
@@ -91,6 +100,9 @@ const projectSchema = new mongoose.Schema({
       ],
       default: 'document_submission'
     },
+    completedDate: {
+      type: Date
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
@@ -107,6 +119,33 @@ const projectSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Middleware to automatically set dates when status changes
+projectSchema.pre('save', function(next) {
+  const project = this;
+  
+  // Set clearance applied date
+  if (project.isModified('clearance.status') && project.clearance.status === 'clearance_applied') {
+    project.clearance.appliedDate = new Date();
+  }
+  
+  // Set clearance received date
+  if (project.isModified('clearance.status') && project.clearance.status === 'clearance_approved') {
+    project.clearance.receivedDate = new Date();
+  }
+  
+  // Set installation completed date
+  if (project.isModified('installation.status') && project.installation.status === 'installation_completed') {
+    project.installation.completedDate = new Date();
+  }
+  
+  // Set connection completed date
+  if (project.isModified('connection.status') && project.connection.status === 'connection_complete') {
+    project.connection.completedDate = new Date();
+  }
+  
+  next();
 });
 
 module.exports = mongoose.model('Project', projectSchema);
