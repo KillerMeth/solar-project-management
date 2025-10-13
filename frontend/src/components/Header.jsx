@@ -20,7 +20,7 @@ const Header = () => {
     <header className="header">
       <nav className="navbar">
         <div className="nav-brand">
-          Solar Projects
+          Macksons Solar Projects
         </div>
         <div className="nav-links">
           <Link to="/" className={getNavLinkClass('/')}>Dashboard</Link>
@@ -29,7 +29,7 @@ const Header = () => {
           {user?.role === 'team_leader' && (
             <Link to="/users" className={getNavLinkClass('/users')}>Users</Link>
           )}
-          <span>Welcome, {user?.name} ({user?.role})</span>
+          <span>Welcome, {user?.name}</span>
           <button onClick={handleLogout} className="btn btn-danger">Logout</button>
         </div>
       </nav>
