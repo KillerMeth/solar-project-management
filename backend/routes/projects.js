@@ -6,10 +6,18 @@ const router = express.Router();
 // Get all projects
 router.get('/', auth, async (req, res) => {
   try {
-    const projects = await Project.find()
+    let query = {};
+    
+    // If user is a technical_officer, only show projects assigned to them
+    if (req.user.role === 'technical_officer') {
+      query.assignedTechnicalOfficer = req.user._id;
+    }
+
+    const projects = await Project.find(query)
       .populate('assignedTechnicalOfficer', 'name email')
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 });
+      
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -131,20 +139,31 @@ router.put('/:id', auth, async (req, res) => {
 // Get project statistics for reports
 router.get('/stats/overview', auth, async (req, res) => {
   try {
-    const totalProjects = await Project.countDocuments();
+    let query = {};
+    
+    // If user is a technical_officer, only count projects assigned to them
+    if (req.user.role === 'technical_officer') {
+      query.assignedTechnicalOfficer = req.user._id;
+    }
+
+    const totalProjects = await Project.countDocuments(query);
     const projectsBySystemType = await Project.aggregate([
+      { $match: query },
       { $group: { _id: '$systemType', count: { $sum: 1 } } }
     ]);
     
     const clearanceStats = await Project.aggregate([
+      { $match: query },
       { $group: { _id: '$clearance.status', count: { $sum: 1 } } }
     ]);
     
     const installationStats = await Project.aggregate([
+      { $match: query },
       { $group: { _id: '$installation.status', count: { $sum: 1 } } }
     ]);
     
     const connectionStats = await Project.aggregate([
+      { $match: query },
       { $group: { _id: '$connection.status', count: { $sum: 1 } } }
     ]);
 
