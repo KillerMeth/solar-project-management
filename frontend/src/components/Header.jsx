@@ -24,8 +24,12 @@ const Header = () => {
   };
 
   const isActiveLink = (path) => {
-    return location.pathname === path ? 'active' : '';
-  };
+  // Special case for dashboard since it can be both '/' and '/dashboard'
+  if (path === '/dashboard') {
+    return location.pathname === '/' || location.pathname === '/dashboard' ? 'active' : '';
+  }
+  return location.pathname === path ? 'active' : '';
+};
 
   return (
     <>

@@ -17,7 +17,14 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* Root path goes to Dashboard */}
             <Route path="/" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            {/* Add this specific dashboard route */}
+            <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
