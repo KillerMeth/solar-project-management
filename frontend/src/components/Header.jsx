@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Header = () => {
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate(); // Add useNavigate hook
 
   const toggleSidePanel = () => {
     setIsSidePanelOpen(!isSidePanelOpen);
@@ -13,6 +14,12 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
+    setIsSidePanelOpen(false);
+  };
+
+  // Fix for navigation - use navigate function instead of Link
+  const handleNavigation = (path) => {
+    navigate(path);
     setIsSidePanelOpen(false);
   };
 
@@ -92,41 +99,37 @@ const Header = () => {
           </button>
         </div>
 
-        {/* Navigation Links */}
+        {/* Navigation Links - FIXED: Using buttons with navigate function */}
         <nav className="side-panel-nav">
-          <Link 
-            to="/dashboard" 
+          <button 
+            onClick={() => handleNavigation('/dashboard')}
             className={`side-panel-link ${isActiveLink('/dashboard')}`}
-            onClick={toggleSidePanel}
           >
             📊 Dashboard
-          </Link>
+          </button>
           
-          <Link 
-            to="/projects" 
+          <button 
+            onClick={() => handleNavigation('/projects')}
             className={`side-panel-link ${isActiveLink('/projects')}`}
-            onClick={toggleSidePanel}
           >
             📋 Projects
-          </Link>
+          </button>
           
           {user?.role === 'team_leader' && (
-            <Link 
-              to="/users" 
+            <button 
+              onClick={() => handleNavigation('/users')}
               className={`side-panel-link ${isActiveLink('/users')}`}
-              onClick={toggleSidePanel}
             >
               👥 Users
-            </Link>
+            </button>
           )}
           
-          <Link 
-            to="/reports" 
+          <button 
+            onClick={() => handleNavigation('/reports')}
             className={`side-panel-link ${isActiveLink('/reports')}`}
-            onClick={toggleSidePanel}
           >
             📈 Reports
-          </Link>
+          </button>
 
           {/* User Info in Side Panel */}
           <div className="side-panel-user-info">
